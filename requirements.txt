@@ -1,0 +1,10 @@
+torch>=2.0.0
+numpy
+pandas
+matplotlib
+tiktoken
+tqdm
+pytest
+lm-eval
+datasets
+requests
