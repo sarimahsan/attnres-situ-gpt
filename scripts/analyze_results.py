@@ -20,7 +20,7 @@ COLORS = {
     "both":     "#d62728"  # Red
 }
 
-def parse_experiment_data(runs_dir: str = "runs"):
+def parse_experiment_data(runs_dir: str = "output/runs"):
     """Collect metric CSVs and summary JSONs across all completed runs."""
     results = {v: [] for v in VARIANTS}
     loss_curves = {v: [] for v in VARIANTS}
@@ -88,10 +88,11 @@ def generate_mock_data():
             
     return results, loss_curves, grad_norms
 
-def plot_loss_curves(loss_curves: dict, out_path: str = "Figure1_Training_Loss_Curves.png"):
+def plot_loss_curves(loss_curves: dict, out_path: str = "output/Figure1_Training_Loss_Curves.png"):
     """Generates Figure 1: Training Loss Curves Overlaid Across Variants."""
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
     plt.figure(figsize=(10, 6), dpi=300)
-    
+
     for v in VARIANTS:
         if not loss_curves[v]:
             continue
@@ -118,8 +119,9 @@ def plot_loss_curves(loss_curves: dict, out_path: str = "Figure1_Training_Loss_C
     plt.close()
     print(f"Saved Figure 1 to {out_path}")
 
-def plot_gradient_stability(grad_norms: dict, out_path: str = "Figure2_Gradient_Stability.png"):
+def plot_gradient_stability(grad_norms: dict, out_path: str = "output/Figure2_Gradient_Stability.png"):
     """Generates Figure 2: Gradient Norm / Stability Comparison."""
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5), dpi=300)
     
     for v in VARIANTS:
@@ -183,9 +185,12 @@ def render_table_1(results: dict) -> str:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--runs-dir", type=str, default="runs")
+    parser.add_argument("--runs-dir", type=str, default="output/runs")
+    parser.add_argument("--output-dir", type=str, default="output")
     parser.add_argument("--mock", action="store_true", help="Generate analysis from mock data if runs are incomplete")
     args = parser.parse_args()
+
+    os.makedirs(args.output_dir, exist_ok=True)
 
     if args.mock or not os.path.exists(args.runs_dir):
         print("Using mock data to render initial analysis figures and tables...")
@@ -193,9 +198,13 @@ def main():
     else:
         results, loss_curves, grad_norms = parse_experiment_data(args.runs_dir)
 
+    fig1_path = os.path.join(args.output_dir, "Figure1_Training_Loss_Curves.png")
+    fig2_path = os.path.join(args.output_dir, "Figure2_Gradient_Stability.png")
+    table1_path = os.path.join(args.output_dir, "results_table1.md")
+
     # Render Figures
-    plot_loss_curves(loss_curves)
-    plot_gradient_stability(grad_norms)
+    plot_loss_curves(loss_curves, fig1_path)
+    plot_gradient_stability(grad_norms, fig2_path)
 
     # Render Table 1
     t1_md = render_table_1(results)
@@ -205,10 +214,10 @@ def main():
     print(t1_md)
     print("=" * 80 + "\n")
     
-    with open("results_table1.md", "w") as f:
+    with open(table1_path, "w") as f:
         f.write("# Main Quantitative Results (Table 1)\n\n" + t1_md + "\n")
         
-    print("Analysis script completed successfully. Generated Table 1 and Figures 1-2.")
+    print(f"Analysis script completed successfully. Output saved in '{args.output_dir}'.")
 
 if __name__ == "__main__":
     main()

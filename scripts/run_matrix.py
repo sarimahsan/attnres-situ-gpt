@@ -1,6 +1,11 @@
 import os
+import sys
 import json
 import argparse
+
+# Add project root directory to sys.path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 from config.model_config import GPTConfig
 from config.train_config import TrainConfig
 from data.prepare_fineweb import prepare_fineweb, generate_synthetic_data
@@ -8,7 +13,7 @@ from training.trainer import Trainer
 
 VARIANTS = ["baseline", "attn_res", "situ_glu", "both"]
 SEEDS = [42, 1337, 2024]
-MANIFEST_PATH = "experiments_manifest.json"
+MANIFEST_PATH = "output/experiments_manifest.json"
 
 def load_manifest() -> dict:
     if os.path.exists(MANIFEST_PATH):
@@ -30,6 +35,7 @@ def load_manifest() -> dict:
     return manifest
 
 def save_manifest(manifest: dict):
+    os.makedirs(os.path.dirname(MANIFEST_PATH), exist_ok=True)
     with open(MANIFEST_PATH, "w") as f:
         json.dump(manifest, f, indent=2)
 

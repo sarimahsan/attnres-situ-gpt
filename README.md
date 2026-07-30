@@ -140,9 +140,58 @@ python scripts/analyze_results.py
 
 ---
 
-## 4. Kaggle Usage
+## 4. Running the 12-Run Experiment Matrix (1B Tokens Each)
 
-In Kaggle notebook cell:
+All outputs (manifest, checkpoints, metric CSVs, figures, and summary tables) are automatically saved inside the **`output/`** directory. Checkpoints (`best.pt` & `latest.pt`) are updated every **2,000 steps** to maintain a compact storage footprint (~240 MB per run).
+
+### 4.1 Run All 12 Experiments Sequentially (1B Tokens Each)
+```bash
+python scripts/run_matrix.py --run-all-pending --target-tokens 1000000000
+```
+
+### 4.2 Run Individual 1B Token Experiments
+
+#### **Variant 0: Baseline (Pre-Norm + SwiGLU)**
+```bash
+python scripts/run_matrix.py --variant baseline --seed 42 --target-tokens 1000000000
+python scripts/run_matrix.py --variant baseline --seed 1337 --target-tokens 1000000000
+python scripts/run_matrix.py --variant baseline --seed 2024 --target-tokens 1000000000
+```
+
+#### **Variant 1: +AttnRes (Full Attention Residuals)**
+```bash
+python scripts/run_matrix.py --variant attn_res --seed 42 --target-tokens 1000000000
+python scripts/run_matrix.py --variant attn_res --seed 1337 --target-tokens 1000000000
+python scripts/run_matrix.py --variant attn_res --seed 2024 --target-tokens 1000000000
+```
+
+#### **Variant 2: +SiTU (SiTU-GLU Bounded Activation)**
+```bash
+python scripts/run_matrix.py --variant situ_glu --seed 42 --target-tokens 1000000000
+python scripts/run_matrix.py --variant situ_glu --seed 1337 --target-tokens 1000000000
+python scripts/run_matrix.py --variant situ_glu --seed 2024 --target-tokens 1000000000
+```
+
+#### **Variant 3: +Both (AttnRes + SiTU-GLU)**
+```bash
+python scripts/run_matrix.py --variant both --seed 42 --target-tokens 1000000000
+python scripts/run_matrix.py --variant both --seed 1337 --target-tokens 1000000000
+python scripts/run_matrix.py --variant both --seed 2024 --target-tokens 1000000000
+```
+
+---
+
+### 4.3 Kaggle Output Zip & Cleanup Workflow
+
+In Kaggle notebook cells, execute individual experiments, zip the output folder for 1-click download, and clean up before starting the next run:
+
 ```python
-!python kaggle/run_kaggle.py --variant attn_res --seed 42 --target-tokens 1000000000
+# 1. Execute target 1B token experiment
+!python scripts/run_matrix.py --variant baseline --seed 42 --target-tokens 1000000000
+
+# 2. Compress output folder to zip
+!zip -r output_baseline_seed42.zip output/
+
+# 3. Clean up local output folder
+!rm -rf output/
 ```

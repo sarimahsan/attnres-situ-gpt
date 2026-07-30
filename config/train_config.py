@@ -4,8 +4,8 @@ from typing import List
 
 @dataclass
 class TrainConfig:
-    out_dir: str = 'runs'
-    eval_interval: int = 500
+    out_dir: str = 'output/runs'
+    eval_interval: int = 2000
     log_interval: int = 10
     eval_iters: int = 100
     always_save_checkpoint: bool = True
