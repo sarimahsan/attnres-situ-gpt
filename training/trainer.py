@@ -41,15 +41,24 @@ class Trainer:
         # Prevent CUDA memory fragmentation
         os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
         
-        # Set seeds for reproducibility
-        torch.manual_seed(train_config.current_seed)
-        np.random.seed(train_config.current_seed)
+        # CUDA optimizations
         if torch.cuda.is_available():
-            torch.cuda.manual_seed_all(train_config.current_seed)
+            torch.backends.cudnn.benchmark = True
+            if hasattr(torch, 'set_float32_matmul_precision'):
+                torch.set_float32_matmul_precision('high')
 
-        # Initialize model, dataset, optimizer, logger
-        self.model = GPT(model_config).to(train_config.device)
-        self.optimizer = self.model.configure_optimizers(
+        # Initialize model
+        raw_model = GPT(model_config)
+        
+        if torch.cuda.is_available() and torch.cuda.device_count() > 1 and 'cuda' in train_config.device:
+            print(f"Detected {torch.cuda.device_count()} GPUs! Enabling DataParallel across GPUs.", flush=True)
+            self.model = torch.nn.DataParallel(raw_model).to(train_config.device)
+        else:
+            self.model = raw_model.to(train_config.device)
+
+        self.raw_model = raw_model
+        
+        self.optimizer = self.raw_model.configure_optimizers(
             weight_decay=train_config.weight_decay,
             learning_rate=train_config.learning_rate,
             betas=(train_config.beta1, train_config.beta2),
@@ -72,7 +81,7 @@ class Trainer:
         self.scaler = torch.amp.GradScaler('cuda', enabled=(train_config.dtype == 'float16'))
         
         # Metrics and counters
-        self.flops_per_token = self.model.estimate_flops_per_token()
+        self.flops_per_token = self.raw_model.estimate_flops_per_token()
         self.tokens_per_step = train_config.batch_size * train_config.block_size * train_config.gradient_accumulation_steps
         self.cumulative_tokens = 0
         self.cumulative_flops = 0.0
@@ -120,7 +129,7 @@ class Trainer:
         config_summary = {
             "model_variant": self.m_cfg.variant,
             "seed": self.t_cfg.current_seed,
-            "num_params": self.model.get_num_params(),
+            "num_params": self.raw_model.get_num_params(),
             "flops_per_token": self.flops_per_token,
             "target_tokens": self.t_cfg.target_tokens,
             "max_iters": self.max_iters,
@@ -130,7 +139,7 @@ class Trainer:
         self.logger.log_config(config_summary)
 
         print(f"Starting training run: {os.path.basename(self.run_dir)}", flush=True)
-        print(f"Params: {self.model.get_num_params():,} | FLOPs/tok: {self.flops_per_token:e} | Total Iters: {self.max_iters}", flush=True)
+        print(f"Params: {self.raw_model.get_num_params():,} | FLOPs/tok: {self.flops_per_token:e} | Total Iters: {self.max_iters}", flush=True)
 
         for iter_num in range(1, self.max_iters + 1):
             lr = self.get_lr(iter_num)
@@ -188,11 +197,11 @@ class Trainer:
                 # Save best model checkpoint
                 if v_loss < best_val_loss:
                     best_val_loss = v_loss
-                    torch.save(self.model.state_dict(), os.path.join(self.run_dir, "best.pt"))
+                    torch.save(self.raw_model.state_dict(), os.path.join(self.run_dir, "best.pt"))
 
             # Save latest checkpoint
             if iter_num % self.t_cfg.eval_interval == 0 or iter_num == self.max_iters:
-                torch.save(self.model.state_dict(), os.path.join(self.run_dir, "latest.pt"))
+                torch.save(self.raw_model.state_dict(), os.path.join(self.run_dir, "latest.pt"))
 
             # Log metrics to CSV
             if iter_num % self.t_cfg.log_interval == 0 or iter_num == self.max_iters:

@@ -31,12 +31,16 @@ class BinaryDatasetLoader:
             self.data = None
 
     def get_batch(self) -> tuple[torch.Tensor, torch.Tensor]:
-        ix = torch.randint(len(self.data) - self.block_size, (self.batch_size,))
-        x = torch.stack([torch.from_numpy((self.data[i:i+self.block_size]).astype(np.int64)) for i in ix])
-        y = torch.stack([torch.from_numpy((self.data[i+1:i+1+self.block_size]).astype(np.int64)) for i in ix])
+        ix = np.random.randint(0, self.n_tokens - self.block_size - 1, size=self.batch_size)
+        offsets = ix[:, None] + np.arange(self.block_size)
+        
+        x_np = self.data[offsets].astype(np.int64)
+        y_np = self.data[offsets + 1].astype(np.int64)
+        
+        x = torch.from_numpy(x_np)
+        y = torch.from_numpy(y_np)
         
         if 'cuda' in self.device:
-            # Pin memory & copy asynchronously to GPU
             x = x.pin_memory().to(self.device, non_blocking=True)
             y = y.pin_memory().to(self.device, non_blocking=True)
         else:
