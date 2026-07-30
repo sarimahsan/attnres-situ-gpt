@@ -38,6 +38,9 @@ class Trainer:
         self.data_dir = data_dir
         self.run_dir = os.path.join(train_config.out_dir, run_name)
         
+        # Prevent CUDA memory fragmentation
+        os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+        
         # Set seeds for reproducibility
         torch.manual_seed(train_config.current_seed)
         np.random.seed(train_config.current_seed)
