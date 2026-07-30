@@ -71,3 +71,13 @@ def test_flop_estimation():
     model = GPT(config)
     flops = model.estimate_flops_per_token()
     assert flops > 0, "FLOP estimation must be positive"
+
+
+@pytest.mark.parametrize("variant", ["baseline", "attn_res", "situ_glu", "both"])
+def test_configure_optimizers(variant: str):
+    """Verify that configure_optimizers assigns all parameters to decay/no_decay without errors."""
+    config = GPTConfig(variant=variant, n_layer=4, n_head=4, n_embd=256)
+    model = GPT(config)
+    optimizer = model.configure_optimizers(weight_decay=0.1, learning_rate=6e-4, betas=(0.9, 0.95), device_type="cpu")
+    assert optimizer is not None
+    assert len(optimizer.param_groups) == 2

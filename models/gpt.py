@@ -161,11 +161,13 @@ class GPT(nn.Module):
         decay = set()
         no_decay = set()
         whitelist_weight_modules = (torch.nn.Linear, )
-        blacklist_weight_modules = (torch.nn.LayerNorm, LayerRMSNorm, torch.nn.Embedding)
+        blacklist_weight_modules = (torch.nn.LayerNorm, LayerNorm, LayerRMSNorm, torch.nn.Embedding)
         
         for mn, m in self.named_modules():
             for pn, p in m.named_parameters():
                 fpn = f'{mn}.{pn}' if mn else pn
+                if not p.requires_grad:
+                    continue
                 if pn.endswith('bias'):
                     no_decay.add(fpn)
                 elif pn.endswith('weight') and isinstance(m, whitelist_weight_modules):
@@ -174,6 +176,10 @@ class GPT(nn.Module):
                     no_decay.add(fpn)
                 elif pn.endswith('q_l') or pn.endswith('scale'):
                     # 1D parameters in AttnResRouters
+                    no_decay.add(fpn)
+                elif p.dim() >= 2:
+                    decay.add(fpn)
+                else:
                     no_decay.add(fpn)
 
         # Validate parameter partitioning
