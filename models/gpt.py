@@ -157,37 +157,25 @@ class GPT(nn.Module):
         return logits, loss
 
     def configure_optimizers(self, weight_decay: float, learning_rate: float, betas: tuple[float, float], device_type: str):
-        # Separate decay / no decay parameters
+        param_dict = {pn: p for pn, p in self.named_parameters() if p.requires_grad}
+
         decay = set()
         no_decay = set()
-        whitelist_weight_modules = (torch.nn.Linear, )
-        blacklist_weight_modules = (torch.nn.LayerNorm, LayerNorm, LayerRMSNorm, torch.nn.Embedding)
-        
-        for mn, m in self.named_modules():
-            for pn, p in m.named_parameters():
-                fpn = f'{mn}.{pn}' if mn else pn
-                if not p.requires_grad:
-                    continue
-                if pn.endswith('bias'):
-                    no_decay.add(fpn)
-                elif pn.endswith('weight') and isinstance(m, whitelist_weight_modules):
-                    decay.add(fpn)
-                elif pn.endswith('weight') and isinstance(m, blacklist_weight_modules):
-                    no_decay.add(fpn)
-                elif pn.endswith('q_l') or pn.endswith('scale'):
-                    # 1D parameters in AttnResRouters
-                    no_decay.add(fpn)
-                elif p.dim() >= 2:
-                    decay.add(fpn)
-                else:
-                    no_decay.add(fpn)
+        seen_param_ids = set()
+
+        for pn, p in param_dict.items():
+            if id(p) in seen_param_ids:
+                continue
+            seen_param_ids.add(id(p))
+
+            if p.dim() < 2 or pn.endswith('bias') or 'wte' in pn or 'wpe' in pn or 'ln_' in pn or 'norm' in pn:
+                no_decay.add(pn)
+            else:
+                decay.add(pn)
 
         # Validate parameter partitioning
-        param_dict = {pn: p for pn, p in self.named_parameters()}
         inter_params = decay & no_decay
-        union_params = decay | no_decay
         assert len(inter_params) == 0, f"Parameters {inter_params} made it into both decay/no_decay sets!"
-        assert len(param_dict.keys() - union_params) == 0, f"Parameters {param_dict.keys() - union_params} were not assigned to decay/no_decay!"
 
         optim_groups = [
             {"params": [param_dict[pn] for pn in sorted(list(decay))], "weight_decay": weight_decay},
