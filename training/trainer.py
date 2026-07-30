@@ -113,6 +113,8 @@ class Trainer:
             X, Y = self.val_loader.get_batch()
             with self.ctx:
                 logits, loss = self.model(X, Y)
+                if loss.ndim > 0:
+                    loss = loss.mean()
             losses[k] = loss.item()
         val_loss = losses.mean().item()
         val_ppl = math.exp(val_loss) if val_loss < 20 else float('inf')
@@ -154,6 +156,8 @@ class Trainer:
                 X, Y = self.train_loader.get_batch()
                 with self.ctx:
                     logits, loss = self.model(X, Y)
+                    if loss.ndim > 0:
+                        loss = loss.mean()
                     loss = loss / self.t_cfg.gradient_accumulation_steps
                 loss_accum += loss.item()
                 self.scaler.scale(loss).backward()
