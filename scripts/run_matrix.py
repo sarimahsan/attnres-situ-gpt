@@ -78,7 +78,7 @@ def run_single_experiment(variant: str, seed: int, data_dir: str, target_tokens:
     if synthetic:
         generate_synthetic_data(data_dir)
     else:
-        prepare_fineweb(data_dir)
+        prepare_fineweb(data_dir, target_tokens=target_tokens)
 
     model_config = GPTConfig(variant=variant)
     train_config = TrainConfig(
