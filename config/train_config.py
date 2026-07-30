@@ -11,9 +11,9 @@ class TrainConfig:
     always_save_checkpoint: bool = True
     
     # Batch & Token parameters
-    batch_size: int = 8            # micro-batch size per forward (lowered to fit comfortably in Kaggle GPU VRAM)
+    batch_size: int = 16           # micro-batch size per forward (fits in ~6.5GB VRAM)
     block_size: int = 512          # context length
-    gradient_accumulation_steps: int = 16  # 8 * 512 * 16 = 65,536 tokens per step
+    gradient_accumulation_steps: int = 8   # 16 * 512 * 8 = 65,536 tokens per step
     
     # Target Token Budget (e.g. 1B tokens)
     target_tokens: int = 1_000_000_000

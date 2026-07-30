@@ -173,8 +173,8 @@ class Trainer:
             wall_clock = time.time() - start_time
             tok_per_sec = self.cumulative_tokens / wall_clock if wall_clock > 0 else 0.0
 
-            # Live Step Progress output every 50 steps (or step 1)
-            if iter_num % 50 == 0 or iter_num == 1:
+            # Live Step Progress output every 10 steps (or step 1)
+            if iter_num % self.t_cfg.log_interval == 0 or iter_num == 1:
                 pct = (iter_num / self.max_iters) * 100
                 print(f"Step {iter_num}/{self.max_iters} ({pct:.1f}%) | Train Loss: {loss_accum:.4f} | LR: {lr:.2e} | Speed: {tok_per_sec:,.0f} tok/s", flush=True)
 
