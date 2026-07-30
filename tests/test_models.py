@@ -20,7 +20,7 @@ def test_gpt_variant_instantiation_and_forward(variant: str):
     idx = torch.randint(0, 1000, (2, 64))
     targets = torch.randint(0, 1000, (2, 64))
     
-    logits, loss = model(idx, targets)
+    logits, loss, act_max = model(idx, targets)
     
     assert logits.shape == (2, 64, 1000)
     assert loss is not None

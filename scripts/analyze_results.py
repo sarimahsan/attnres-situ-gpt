@@ -120,9 +120,9 @@ def plot_loss_curves(loss_curves: dict, out_path: str = "output/Figure1_Training
     print(f"Saved Figure 1 to {out_path}")
 
 def plot_gradient_stability(grad_norms: dict, out_path: str = "output/Figure2_Gradient_Stability.png"):
-    """Generates Figure 2: Gradient Norm / Stability Comparison."""
+    """Generates Figure 2: 3-Panel Gradient Norm & Activation Maxima Stability Comparison."""
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5), dpi=300)
+    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(18, 5), dpi=300)
     
     for v in VARIANTS:
         if not grad_norms[v]:
@@ -138,19 +138,29 @@ def plot_gradient_stability(grad_norms: dict, out_path: str = "output/Figure2_Gr
         ax1.plot(steps, means, label=VARIANT_LABELS[v], color=COLORS[v], linewidth=1.5)
         ax2.plot(steps, maxs, label=VARIANT_LABELS[v], color=COLORS[v], linewidth=1.5, alpha=0.85)
 
-    ax1.set_title("(a) Mean Gradient Norm per Step", fontsize=12, fontweight='bold')
+        if "act_max" in dfs[0].columns:
+            act_maxs = np.array([df["act_max"].values[:min_len] for df in dfs]).mean(axis=0)
+            ax3.plot(steps, act_maxs, label=VARIANT_LABELS[v], color=COLORS[v], linewidth=1.5, alpha=0.85)
+
+    ax1.set_title("(a) Mean Gradient Norm per Step", fontsize=11, fontweight='bold')
     ax1.set_xlabel("Steps")
     ax1.set_ylabel("Mean Grad Norm")
     ax1.grid(True, linestyle="--", alpha=0.5)
-    ax1.legend(fontsize=9)
+    ax1.legend(fontsize=8)
     
-    ax2.set_title("(b) Max Gradient Norm per Step (Stability Signal)", fontsize=12, fontweight='bold')
+    ax2.set_title("(b) Max Gradient Norm per Step", fontsize=11, fontweight='bold')
     ax2.set_xlabel("Steps")
     ax2.set_ylabel("Max Grad Norm")
     ax2.grid(True, linestyle="--", alpha=0.5)
-    ax2.legend(fontsize=9)
+    ax2.legend(fontsize=8)
 
-    plt.suptitle("Figure 2: Gradient Norm Stability & Activation Bounding Comparison", fontsize=14, fontweight='bold', y=1.02)
+    ax3.set_title("(c) Peak Activation Maxima (ActMax)", fontsize=11, fontweight='bold')
+    ax3.set_xlabel("Steps")
+    ax3.set_ylabel("ActMax (||x||_∞)")
+    ax3.grid(True, linestyle="--", alpha=0.5)
+    ax3.legend(fontsize=8)
+
+    plt.suptitle("Figure 2: Gradient Norm Stability & Peak Activation Bounding (ActMax) Comparison", fontsize=13, fontweight='bold', y=1.02)
     plt.tight_layout()
     plt.savefig(out_path)
     plt.close()

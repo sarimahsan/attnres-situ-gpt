@@ -8,7 +8,7 @@ class TrainConfig:
     eval_interval: int = 2000
     log_interval: int = 10
     eval_iters: int = 100
-    always_save_checkpoint: bool = True
+    always_save_checkpoint: bool = False
     
     # Batch & Token parameters
     batch_size: int = 16           # micro-batch size per forward (fits in ~6.5GB VRAM)

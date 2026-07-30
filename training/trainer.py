@@ -143,6 +143,7 @@ class Trainer:
 
         print(f"Starting training run: {os.path.basename(self.run_dir)}", flush=True)
         print(f"Params: {self.raw_model.get_num_params():,} | FLOPs/tok: {self.flops_per_token:e} | Total Iters: {self.max_iters}", flush=True)
+        print(f"Precision: {self.t_cfg.dtype} | AMP GradScaler Enabled: {self.t_cfg.dtype == 'float16'}", flush=True)
 
         for iter_num in range(1, self.max_iters + 1):
             lr = self.get_lr(iter_num)
@@ -217,10 +218,11 @@ class Trainer:
                 # Save best model checkpoint
                 if v_loss < best_val_loss:
                     best_val_loss = v_loss
-                    torch.save(self.raw_model.state_dict(), os.path.join(self.run_dir, "best.pt"))
+                    if self.t_cfg.always_save_checkpoint:
+                        torch.save(self.raw_model.state_dict(), os.path.join(self.run_dir, "best.pt"))
 
             # Save latest checkpoint
-            if iter_num % self.t_cfg.eval_interval == 0 or iter_num == self.max_iters:
+            if (iter_num % self.t_cfg.eval_interval == 0 or iter_num == self.max_iters) and self.t_cfg.always_save_checkpoint:
                 torch.save(self.raw_model.state_dict(), os.path.join(self.run_dir, "latest.pt"))
 
             # Log metrics to CSV

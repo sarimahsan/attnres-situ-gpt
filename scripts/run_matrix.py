@@ -51,9 +51,9 @@ def print_status(manifest: dict):
             completed += 1
             val_loss = info.get("summary", {}).get("final_val_loss", "N/A")
             val_ppl = info.get("summary", {}).get("final_val_ppl", "N/A")
-            print(f"  [✓] {key:<20} | Status: COMPLETED | Val Loss: {val_loss} | Val PPL: {val_ppl}")
+            print(f"  [OK] {key:<20} | Status: COMPLETED | Val Loss: {val_loss} | Val PPL: {val_ppl}")
         elif status == "IN_PROGRESS":
-            print(f"  [➔] {key:<20} | Status: IN_PROGRESS")
+            print(f"  [->] {key:<20} | Status: IN_PROGRESS")
         else:
             print(f"  [ ] {key:<20} | Status: {status}")
     print("-" * 65)
