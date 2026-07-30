@@ -19,7 +19,7 @@ class TrainConfig:
     target_tokens: int = 1_000_000_000
     
     # Optimization
-    learning_rate: float = 6e-4
+    learning_rate: float = 3e-4    # Optimal stable learning rate for ~20M LM in FP16
     max_iters: int = 5000          # will be computed dynamically based on target_tokens if set
     weight_decay: float = 0.1
     beta1: float = 0.9
@@ -28,9 +28,9 @@ class TrainConfig:
     
     # Learning rate schedule
     decay_lr: bool = True
-    warmup_iters: int = 500
+    warmup_iters: int = 1000
     lr_decay_iters: int = 5000
-    min_lr: float = 6e-5
+    min_lr: float = 3e-5
     
     # Experiment Matrix Seeds
     seeds: List[int] = field(default_factory=lambda: [42, 1337, 2024])
