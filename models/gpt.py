@@ -160,9 +160,10 @@ class GPT(nn.Module):
             loss = None
 
         with torch.no_grad():
-            self.last_act_max = max(getattr(b, 'last_act_max', 0.0) for b in self.transformer.h)
+            act_max_val = max(getattr(b, 'last_act_max', 0.0) for b in self.transformer.h)
+            act_max = torch.tensor(act_max_val, device=device, dtype=torch.float32)
 
-        return logits, loss
+        return logits, loss, act_max
 
     def configure_optimizers(self, weight_decay: float, learning_rate: float, betas: tuple[float, float], device_type: str):
         param_dict = {pn: p for pn, p in self.named_parameters() if p.requires_grad}

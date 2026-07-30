@@ -113,7 +113,7 @@ class Trainer:
         for k in range(self.t_cfg.eval_iters):
             X, Y = self.val_loader.get_batch()
             with self.ctx:
-                logits, loss = self.model(X, Y)
+                logits, loss, _ = self.model(X, Y)
                 if loss.ndim > 0:
                     loss = loss.mean()
             losses[k] = loss.item()
@@ -152,15 +152,18 @@ class Trainer:
             # Gradient Accumulation
             self.optimizer.zero_grad(set_to_none=True)
             loss_accum = 0.0
+            step_act_max = 0.0
             
             for micro_step in range(self.t_cfg.gradient_accumulation_steps):
                 X, Y = self.train_loader.get_batch()
                 with self.ctx:
-                    logits, loss = self.model(X, Y)
+                    logits, loss, act_max_batch = self.model(X, Y)
                     if loss.ndim > 0:
                         loss = loss.mean()
                     loss = loss / self.t_cfg.gradient_accumulation_steps
                 loss_accum += loss.item()
+                if act_max_batch is not None:
+                    step_act_max = max(step_act_max, float(act_max_batch.max().item()))
                 self.scaler.scale(loss).backward()
 
             # Gradient Clipping, Parameter Norms, and Scaler Diagnostics
@@ -178,7 +181,7 @@ class Trainer:
             param_norm_mean = float(np.mean(param_norms)) if param_norms else 0.0
             param_norm_max = float(np.max(param_norms)) if param_norms else 0.0
 
-            act_max = getattr(self.raw_model, 'last_act_max', 0.0)
+            act_max = step_act_max
             scaler_scale = self.scaler.get_scale() if hasattr(self.scaler, 'get_scale') else 1.0
 
             # Check for non-finite values (NaN / Inf)
