@@ -67,10 +67,10 @@ def run_single_experiment(variant: str, seed: int, data_dir: str, target_tokens:
         raise ValueError(f"Unknown run key {run_key}")
         
     if manifest[run_key]["status"] == "COMPLETED":
-        print(f"Run {run_key} is already COMPLETED. Skipping.")
+        print(f"Run {run_key} is already COMPLETED. Skipping.", flush=True)
         return
 
-    print(f"\nLaunching Run: {run_key} (Variant={variant}, Seed={seed})...")
+    print(f"\nLaunching Run: {run_key} (Variant={variant}, Seed={seed})...", flush=True)
     manifest[run_key]["status"] = "IN_PROGRESS"
     save_manifest(manifest)
 

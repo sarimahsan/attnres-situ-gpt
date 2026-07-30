@@ -129,8 +129,8 @@ class Trainer:
         }
         self.logger.log_config(config_summary)
 
-        print(f"Starting training run: {os.path.basename(self.run_dir)}")
-        print(f"Params: {self.model.get_num_params():,} | FLOPs/tok: {self.flops_per_token:e} | Total Iters: {self.max_iters}")
+        print(f"Starting training run: {os.path.basename(self.run_dir)}", flush=True)
+        print(f"Params: {self.model.get_num_params():,} | FLOPs/tok: {self.flops_per_token:e} | Total Iters: {self.max_iters}", flush=True)
 
         for iter_num in range(1, self.max_iters + 1):
             lr = self.get_lr(iter_num)
@@ -173,12 +173,17 @@ class Trainer:
             wall_clock = time.time() - start_time
             tok_per_sec = self.cumulative_tokens / wall_clock if wall_clock > 0 else 0.0
 
+            # Live Step Progress output every 50 steps (or step 1)
+            if iter_num % 50 == 0 or iter_num == 1:
+                pct = (iter_num / self.max_iters) * 100
+                print(f"Step {iter_num}/{self.max_iters} ({pct:.1f}%) | Train Loss: {loss_accum:.4f} | LR: {lr:.2e} | Speed: {tok_per_sec:,.0f} tok/s", flush=True)
+
             # Evaluation Interval
             val_loss, val_ppl = "", ""
             if iter_num % self.t_cfg.eval_interval == 0 or iter_num == self.max_iters:
                 v_loss, v_ppl = self.estimate_val_loss()
                 val_loss, val_ppl = v_loss, v_ppl
-                print(f"Step {iter_num}/{self.max_iters} | Train Loss: {loss_accum:.4f} | Val Loss: {v_loss:.4f} | Val PPL: {v_ppl:.2f}")
+                print(f"==> Step {iter_num}/{self.max_iters} EVAL | Train Loss: {loss_accum:.4f} | Val Loss: {v_loss:.4f} | Val PPL: {v_ppl:.2f}", flush=True)
 
                 # Save best model checkpoint
                 if v_loss < best_val_loss:
