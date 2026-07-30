@@ -1,12 +1,12 @@
 import os
 import csv
 import json
-import time
 from typing import Dict, Any
 
 class ExperimentLogger:
     """
-    Structured logger for tracking model metrics, FLOPs, and gradient stability.
+    Structured logger for tracking model metrics, FLOPs, activation maxima,
+    gradient stability, parameter norms, and AMP scaler states.
     Saves metrics directly to CSV and summary JSON.
     """
     def __init__(self, run_dir: str):
@@ -19,8 +19,10 @@ class ExperimentLogger:
         
         self.fieldnames = [
             "step", "train_loss", "val_loss", "val_ppl", 
-            "grad_norm_mean", "grad_norm_max", "loss_spikes", 
-            "lr", "tokens_per_sec", "wall_clock_sec", 
+            "grad_norm_mean", "grad_norm_max", 
+            "param_norm_mean", "param_norm_max",
+            "act_max", "scaler_scale", "nan_inf_count",
+            "loss_spikes", "lr", "tokens_per_sec", "wall_clock_sec", 
             "cumulative_flops", "cumulative_tokens"
         ]
         

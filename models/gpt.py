@@ -26,10 +26,15 @@ class Block(nn.Module):
         self.attn = CausalSelfAttention(config)
         self.ln_2 = LayerNorm(config.n_embd, bias=config.bias)
         self.mlp = MLP(config)
+        self.last_act_max = 0.0
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = x + self.attn(self.ln_1(x))
-        x = x + self.mlp(self.ln_2(x))
+        attn_out = self.attn(self.ln_1(x))
+        x = x + attn_out
+        mlp_out = self.mlp(self.ln_2(x))
+        x = x + mlp_out
+        with torch.no_grad():
+            self.last_act_max = max(float(attn_out.abs().max().item()), float(mlp_out.abs().max().item()))
         return x
 
 
@@ -153,6 +158,9 @@ class GPT(nn.Module):
             # Inference optimization: only project the last token's logits
             logits = self.lm_head(x[:, [-1], :])
             loss = None
+
+        with torch.no_grad():
+            self.last_act_max = max(getattr(b, 'last_act_max', 0.0) for b in self.transformer.h)
 
         return logits, loss
 

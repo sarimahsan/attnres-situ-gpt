@@ -85,6 +85,7 @@ class Trainer:
         self.tokens_per_step = train_config.batch_size * train_config.block_size * train_config.gradient_accumulation_steps
         self.cumulative_tokens = 0
         self.cumulative_flops = 0.0
+        self.nan_inf_count = 0
         
         # Compute max iterations based on target token budget
         if train_config.target_tokens > 0:
@@ -162,7 +163,7 @@ class Trainer:
                 loss_accum += loss.item()
                 self.scaler.scale(loss).backward()
 
-            # Gradient Clipping & Norm Calculation
+            # Gradient Clipping, Parameter Norms, and Scaler Diagnostics
             self.scaler.unscale_(self.optimizer)
             
             grad_norms = []
@@ -172,6 +173,18 @@ class Trainer:
             
             grad_norm_mean = float(np.mean(grad_norms)) if grad_norms else 0.0
             grad_norm_max = float(np.max(grad_norms)) if grad_norms else 0.0
+
+            param_norms = [p.detach().norm(2).item() for p in self.model.parameters()]
+            param_norm_mean = float(np.mean(param_norms)) if param_norms else 0.0
+            param_norm_max = float(np.max(param_norms)) if param_norms else 0.0
+
+            act_max = getattr(self.raw_model, 'last_act_max', 0.0)
+            scaler_scale = self.scaler.get_scale() if hasattr(self.scaler, 'get_scale') else 1.0
+
+            # Check for non-finite values (NaN / Inf)
+            is_non_finite = not math.isfinite(loss_accum) or any(not math.isfinite(g) for g in grad_norms)
+            if is_non_finite:
+                self.nan_inf_count += 1
 
             if self.t_cfg.grad_clip != 0.0:
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.t_cfg.grad_clip)
@@ -186,10 +199,10 @@ class Trainer:
             wall_clock = time.time() - start_time
             tok_per_sec = self.cumulative_tokens / wall_clock if wall_clock > 0 else 0.0
 
-            # Live Step Progress output every 10 steps (or step 1)
+            # Live Step Progress output every 10 steps (or step 1) with rich diagnostics
             if iter_num % self.t_cfg.log_interval == 0 or iter_num == 1:
                 pct = (iter_num / self.max_iters) * 100
-                print(f"Step {iter_num}/{self.max_iters} ({pct:.1f}%) | Train Loss: {loss_accum:.4f} | LR: {lr:.2e} | Speed: {tok_per_sec:,.0f} tok/s", flush=True)
+                print(f"Step {iter_num}/{self.max_iters} ({pct:.1f}%) | Loss: {loss_accum:.4f} | LR: {lr:.2e} | GradNorm: {grad_norm_max:.2f} | ActMax: {act_max:.2f} | Scaler: {scaler_scale:.0f} | Speed: {tok_per_sec:,.0f} tok/s", flush=True)
 
             # Evaluation Interval
             val_loss, val_ppl = "", ""
@@ -216,6 +229,11 @@ class Trainer:
                     "val_ppl": round(val_ppl, 2) if val_ppl != "" else "",
                     "grad_norm_mean": round(grad_norm_mean, 5),
                     "grad_norm_max": round(grad_norm_max, 5),
+                    "param_norm_mean": round(param_norm_mean, 5),
+                    "param_norm_max": round(param_norm_max, 5),
+                    "act_max": round(act_max, 4),
+                    "scaler_scale": round(scaler_scale, 1),
+                    "nan_inf_count": self.nan_inf_count,
                     "loss_spikes": self.spike_detector.spike_count,
                     "lr": round(lr, 8),
                     "tokens_per_sec": round(tok_per_sec, 1),
