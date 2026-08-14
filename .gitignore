@@ -56,3 +56,19 @@ ENV/
 *.swo
 .DS_Store
 Thumbs.db
+
+# Documentation & Generated Reports
+docs/
+*.pdf
+*.tex
+*.docx
+*.doc
+
+# Images, Plots & Figures
+*.png
+*.jpg
+*.jpeg
+*.svg
+
+# Output Artifacts & Runs
+output/

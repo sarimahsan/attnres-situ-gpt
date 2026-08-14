@@ -13,7 +13,7 @@ from training.trainer import Trainer
 
 VARIANTS = ["baseline", "attn_res", "situ_glu", "both"]
 SEEDS = [42, 1337, 2024]
-MANIFEST_PATH = "output/experiments_manifest.json"
+MANIFEST_PATH = "experiments_manifest.json"
 
 def load_manifest() -> dict:
     if os.path.exists(MANIFEST_PATH):
@@ -59,15 +59,15 @@ def print_status(manifest: dict):
     print("-" * 65)
     print(f"Progress: {completed}/{total} runs completed ({(completed/total)*100:.1f}%)\n")
 
-def run_single_experiment(variant: str, seed: int, data_dir: str, target_tokens: int, max_steps: int = None, synthetic: bool = False):
+def run_single_experiment(variant: str, seed: int, data_dir: str, target_tokens: int, max_steps: int = None, synthetic: bool = False, force: bool = False):
     manifest = load_manifest()
     run_key = f"{variant}_seed{seed}"
     
     if run_key not in manifest:
         raise ValueError(f"Unknown run key {run_key}")
         
-    if manifest[run_key]["status"] == "COMPLETED":
-        print(f"Run {run_key} is already COMPLETED. Skipping.", flush=True)
+    if manifest[run_key]["status"] == "COMPLETED" and not force:
+        print(f"Run {run_key} is already COMPLETED. Skipping. (Use --force to overwrite)", flush=True)
         return
 
     print(f"\nLaunching Run: {run_key} (Variant={variant}, Seed={seed})...", flush=True)
@@ -110,6 +110,7 @@ def main():
     parser.add_argument("--max-steps", type=int, default=None, help="Override max training steps (for testing/dry-runs)")
     parser.add_argument("--synthetic", action="store_true", help="Use synthetic dataset for rapid local testing")
     parser.add_argument("--status", action="store_true", help="Display current experiment matrix status and exit")
+    parser.add_argument("--force", action="store_true", help="Force re-running completed experiments")
     args = parser.parse_args()
 
     manifest = load_manifest()
@@ -121,18 +122,18 @@ def main():
     if args.run_all_pending:
         print("Running all PENDING experiments in manifest...")
         for key, info in manifest.items():
-            if info["status"] in ("PENDING", "FAILED"):
+            if info["status"] in ("PENDING", "FAILED") or args.force:
                 run_single_experiment(
                     info["variant"], info["seed"], 
                     args.data_dir, args.target_tokens, 
-                    args.max_steps, args.synthetic
+                    args.max_steps, args.synthetic, args.force
                 )
         print_status(load_manifest())
     elif args.variant and args.seed:
         run_single_experiment(
             args.variant, args.seed, 
             args.data_dir, args.target_tokens, 
-            args.max_steps, args.synthetic
+            args.max_steps, args.synthetic, args.force
         )
         print_status(load_manifest())
     else:

@@ -75,10 +75,9 @@ class Trainer:
         self.logger = ExperimentLogger(self.run_dir)
         self.spike_detector = LossSpikeDetector()
         
-        # Mixed Precision AMP setup
-        ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[train_config.dtype]
-        self.ctx = torch.amp.autocast(device_type='cuda' if 'cuda' in train_config.device else 'cpu', dtype=ptdtype)
-        self.scaler = torch.amp.GradScaler('cuda', enabled=(train_config.dtype == 'float16'))
+        # Mixed Precision AMP setup (BF16, no loss scaling needed)
+        device_type = 'cuda' if 'cuda' in train_config.device else 'cpu'
+        self.ctx = torch.amp.autocast(device_type=device_type, dtype=torch.bfloat16)
         
         # Metrics and counters
         self.flops_per_token = self.raw_model.estimate_flops_per_token()
@@ -143,7 +142,7 @@ class Trainer:
 
         print(f"Starting training run: {os.path.basename(self.run_dir)}", flush=True)
         print(f"Params: {self.raw_model.get_num_params():,} | FLOPs/tok: {self.flops_per_token:e} | Total Iters: {self.max_iters}", flush=True)
-        print(f"Precision: {self.t_cfg.dtype} | AMP GradScaler Enabled: {self.t_cfg.dtype == 'float16'}", flush=True)
+        print(f"Precision: bfloat16 | GradScaler: Disabled", flush=True)
 
         for iter_num in range(1, self.max_iters + 1):
             lr = self.get_lr(iter_num)
@@ -165,11 +164,9 @@ class Trainer:
                 loss_accum += loss.item()
                 if act_max_batch is not None:
                     step_act_max = max(step_act_max, float(act_max_batch.max().item()))
-                self.scaler.scale(loss).backward()
+                loss.backward()
 
-            # Gradient Clipping, Parameter Norms, and Scaler Diagnostics
-            self.scaler.unscale_(self.optimizer)
-            
+            # Gradient Clipping and Parameter Norms
             grad_norms = []
             for p in self.model.parameters():
                 if p.grad is not None:
@@ -183,7 +180,6 @@ class Trainer:
             param_norm_max = float(np.max(param_norms)) if param_norms else 0.0
 
             act_max = step_act_max
-            scaler_scale = self.scaler.get_scale() if hasattr(self.scaler, 'get_scale') else 1.0
 
             # Check for non-finite values (NaN / Inf)
             is_non_finite = not math.isfinite(loss_accum) or any(not math.isfinite(g) for g in grad_norms)
@@ -193,8 +189,7 @@ class Trainer:
             if self.t_cfg.grad_clip != 0.0:
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.t_cfg.grad_clip)
 
-            self.scaler.step(self.optimizer)
-            self.scaler.update()
+            self.optimizer.step()
 
             # Update step metrics
             self.cumulative_tokens += self.tokens_per_step
@@ -206,7 +201,7 @@ class Trainer:
             # Live Step Progress output every 10 steps (or step 1) with rich diagnostics
             if iter_num % self.t_cfg.log_interval == 0 or iter_num == 1:
                 pct = (iter_num / self.max_iters) * 100
-                print(f"Step {iter_num}/{self.max_iters} ({pct:.1f}%) | Loss: {loss_accum:.4f} | LR: {lr:.2e} | GradNorm: {grad_norm_max:.2f} | ActMax: {act_max:.2f} | Scaler: {scaler_scale:.0f} | Speed: {tok_per_sec:,.0f} tok/s", flush=True)
+                print(f"Step {iter_num}/{self.max_iters} ({pct:.1f}%) | Loss: {loss_accum:.4f} | LR: {lr:.2e} | GradNorm: {grad_norm_max:.2f} | ActMax: {act_max:.2f} | Speed: {tok_per_sec:,.0f} tok/s", flush=True)
 
             # Evaluation Interval
             val_loss, val_ppl = "", ""
@@ -237,7 +232,7 @@ class Trainer:
                     "param_norm_mean": round(param_norm_mean, 5),
                     "param_norm_max": round(param_norm_max, 5),
                     "act_max": round(act_max, 4),
-                    "scaler_scale": round(scaler_scale, 1),
+                    "scaler_scale": 1.0,
                     "nan_inf_count": self.nan_inf_count,
                     "loss_spikes": self.spike_detector.spike_count,
                     "lr": round(lr, 8),

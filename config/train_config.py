@@ -19,7 +19,7 @@ class TrainConfig:
     target_tokens: int = 1_000_000_000
     
     # Optimization
-    learning_rate: float = 3e-4    # Optimal stable learning rate for ~20M LM in FP16
+    learning_rate: float = 1.5e-4  # Robust learning rate preventing FP16/BF16 loss divergence
     max_iters: int = 5000          # will be computed dynamically based on target_tokens if set
     weight_decay: float = 0.1
     beta1: float = 0.9
@@ -30,7 +30,7 @@ class TrainConfig:
     decay_lr: bool = True
     warmup_iters: int = 1000
     lr_decay_iters: int = 5000
-    min_lr: float = 3e-5
+    min_lr: float = 1.5e-5
     
     # Experiment Matrix Seeds
     seeds: List[int] = field(default_factory=lambda: [42, 1337, 2024])
@@ -38,7 +38,7 @@ class TrainConfig:
     
     # System settings
     device: str = 'cuda' if torch.cuda.is_available() else 'cpu'
-    dtype: str = 'bfloat16' if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else 'float16'
+    dtype: str = 'bfloat16'
     
     def get_tokens_per_step() -> int:
         return self.batch_size * self.block_size * self.gradient_accumulation_steps
