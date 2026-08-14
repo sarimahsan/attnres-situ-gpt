@@ -166,29 +166,26 @@ class Trainer:
                     step_act_max = max(step_act_max, float(act_max_batch.max().item()))
                 loss.backward()
 
-            # Gradient Clipping and Parameter Norms
-            grad_norms = []
-            for p in self.model.parameters():
-                if p.grad is not None:
-                    grad_norms.append(p.grad.detach().norm(2).item())
-            
-            grad_norm_mean = float(np.mean(grad_norms)) if grad_norms else 0.0
-            grad_norm_max = float(np.max(grad_norms)) if grad_norms else 0.0
-
+            # Parameter Norms & Diagnostics
             param_norms = [p.detach().norm(2).item() for p in self.model.parameters()]
             param_norm_mean = float(np.mean(param_norms)) if param_norms else 0.0
             param_norm_max = float(np.max(param_norms)) if param_norms else 0.0
-
             act_max = step_act_max
 
+            # Gradient Clipping (Computes total global norm and scales gradients before optimizer step)
+            if self.t_cfg.grad_clip != 0.0:
+                total_grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.t_cfg.grad_clip)
+                grad_norm_val = float(total_grad_norm.item() if hasattr(total_grad_norm, 'item') else total_grad_norm)
+            else:
+                grads = [p.grad.detach().norm(2).item() ** 2 for p in self.model.parameters() if p.grad is not None]
+                grad_norm_val = math.sqrt(sum(grads)) if grads else 0.0
+
             # Check for non-finite values (NaN / Inf)
-            is_non_finite = not math.isfinite(loss_accum) or any(not math.isfinite(g) for g in grad_norms)
+            is_non_finite = not math.isfinite(loss_accum) or not math.isfinite(grad_norm_val)
             if is_non_finite:
                 self.nan_inf_count += 1
 
-            if self.t_cfg.grad_clip != 0.0:
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.t_cfg.grad_clip)
-
+            # Optimizer Step (Always after gradient clipping)
             self.optimizer.step()
 
             # Update step metrics
@@ -201,7 +198,7 @@ class Trainer:
             # Live Step Progress output every 10 steps (or step 1) with rich diagnostics
             if iter_num % self.t_cfg.log_interval == 0 or iter_num == 1:
                 pct = (iter_num / self.max_iters) * 100
-                print(f"Step {iter_num}/{self.max_iters} ({pct:.1f}%) | Loss: {loss_accum:.4f} | LR: {lr:.2e} | GradNorm: {grad_norm_max:.2f} | ActMax: {act_max:.2f} | Speed: {tok_per_sec:,.0f} tok/s", flush=True)
+                print(f"Step {iter_num}/{self.max_iters} ({pct:.1f}%) | Loss: {loss_accum:.4f} | LR: {lr:.2e} | GradNorm(pre-clip): {grad_norm_val:.2f} | ActMax: {act_max:.2f} | Speed: {tok_per_sec:,.0f} tok/s", flush=True)
 
             # Evaluation Interval
             val_loss, val_ppl = "", ""
@@ -227,8 +224,8 @@ class Trainer:
                     "train_loss": round(loss_accum, 5),
                     "val_loss": round(val_loss, 5) if val_loss != "" else "",
                     "val_ppl": round(val_ppl, 2) if val_ppl != "" else "",
-                    "grad_norm_mean": round(grad_norm_mean, 5),
-                    "grad_norm_max": round(grad_norm_max, 5),
+                    "grad_norm_mean": round(grad_norm_val, 5),
+                    "grad_norm_max": round(grad_norm_val, 5),
                     "param_norm_mean": round(param_norm_mean, 5),
                     "param_norm_max": round(param_norm_max, 5),
                     "act_max": round(act_max, 4),

@@ -19,7 +19,7 @@ class TrainConfig:
     target_tokens: int = 1_000_000_000
     
     # Optimization
-    learning_rate: float = 1.5e-4  # Robust learning rate preventing FP16/BF16 loss divergence
+    learning_rate: float = 1.0e-4  # Robust learning rate preventing loss divergence
     max_iters: int = 5000          # will be computed dynamically based on target_tokens if set
     weight_decay: float = 0.1
     beta1: float = 0.9
@@ -28,9 +28,9 @@ class TrainConfig:
     
     # Learning rate schedule
     decay_lr: bool = True
-    warmup_iters: int = 1000
+    warmup_iters: int = 1500
     lr_decay_iters: int = 5000
-    min_lr: float = 1.5e-5
+    min_lr: float = 1.0e-5
     
     # Experiment Matrix Seeds
     seeds: List[int] = field(default_factory=lambda: [42, 1337, 2024])
