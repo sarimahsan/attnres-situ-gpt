@@ -35,7 +35,9 @@ def load_manifest() -> dict:
     return manifest
 
 def save_manifest(manifest: dict):
-    os.makedirs(os.path.dirname(MANIFEST_PATH), exist_ok=True)
+    dirname = os.path.dirname(MANIFEST_PATH)
+    if dirname:
+        os.makedirs(dirname, exist_ok=True)
     with open(MANIFEST_PATH, "w") as f:
         json.dump(manifest, f, indent=2)
 
