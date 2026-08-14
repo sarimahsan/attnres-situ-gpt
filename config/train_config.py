@@ -15,21 +15,21 @@ class TrainConfig:
     block_size: int = 512          # context length
     gradient_accumulation_steps: int = 2   # 64 * 512 * 2 = 65,536 tokens per step
     
-    # Target Token Budget (e.g. 1B tokens)
-    target_tokens: int = 1_000_000_000
+    # Target Token Budget (500M tokens per paper specification -> exactly 7,629 steps)
+    target_tokens: int = 500_000_000
     
     # Optimization
-    learning_rate: float = 1.0e-4  # Robust learning rate preventing loss divergence
-    max_iters: int = 5000          # will be computed dynamically based on target_tokens if set
+    learning_rate: float = 1.0e-4  # Stabilized peak LR
+    max_iters: int = 7629          # computed dynamically based on target_tokens
     weight_decay: float = 0.1
     beta1: float = 0.9
-    beta2: float = 0.95
+    beta2: float = 0.98            # 50-step EMA variance estimator (prevents step-size spikes)
     grad_clip: float = 1.0
     
     # Learning rate schedule
     decay_lr: bool = True
-    warmup_iters: int = 1500
-    lr_decay_iters: int = 5000
+    warmup_iters: int = 1000
+    lr_decay_iters: int = 7629
     min_lr: float = 1.0e-5
     
     # Experiment Matrix Seeds
