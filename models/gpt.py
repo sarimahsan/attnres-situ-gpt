@@ -113,7 +113,7 @@ class GPT(nn.Module):
         
         return base_flops + seq_attn_flops + attn_res_flops
 
-    def forward(self, idx: torch.Tensor, targets: torch.Tensor = None) -> tuple[torch.Tensor, torch.Tensor | None]:
+    def forward(self, idx: torch.Tensor, targets: torch.Tensor = None, return_logits: bool = True) -> tuple[torch.Tensor | None, torch.Tensor | None, torch.Tensor]:
         device = idx.device
         b, t = idx.size()
         assert t <= self.config.block_size, f"Cannot forward sequence of length {t}, block size is {self.config.block_size}"
@@ -154,6 +154,8 @@ class GPT(nn.Module):
             # If targets are provided, calculate loss
             logits = self.lm_head(x)
             loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index=-1)
+            if not return_logits:
+                logits = None
         else:
             # Inference optimization: only project the last token's logits
             logits = self.lm_head(x[:, [-1], :])

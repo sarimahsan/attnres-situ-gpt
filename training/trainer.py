@@ -112,7 +112,7 @@ class Trainer:
         for k in range(self.t_cfg.eval_iters):
             X, Y = self.val_loader.get_batch()
             with self.ctx:
-                logits, loss, _ = self.model(X, Y)
+                _, loss, _ = self.model(X, Y, return_logits=False)
                 if loss.ndim > 0:
                     loss = loss.mean()
             losses[k] = loss.item()
@@ -157,7 +157,7 @@ class Trainer:
             for micro_step in range(self.t_cfg.gradient_accumulation_steps):
                 X, Y = self.train_loader.get_batch()
                 with self.ctx:
-                    logits, loss, act_max_batch = self.model(X, Y)
+                    _, loss, act_max_batch = self.model(X, Y, return_logits=False)
                     if loss.ndim > 0:
                         loss = loss.mean()
                     loss = loss / self.t_cfg.gradient_accumulation_steps
