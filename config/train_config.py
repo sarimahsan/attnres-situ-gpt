@@ -10,10 +10,10 @@ class TrainConfig:
     eval_iters: int = 100
     always_save_checkpoint: bool = False
     
-    # Batch & Token parameters (Optimized for 2x T4 15GB GPUs)
-    batch_size: int = 32           # micro-batch size per forward (~8GB VRAM per GPU on DataParallel)
+    # Batch & Token parameters (Max GPU Density for 2x T4 15GB GPUs)
+    batch_size: int = 64           # micro-batch size per forward (32 per GPU on DataParallel)
     block_size: int = 512          # context length
-    gradient_accumulation_steps: int = 4   # 32 * 512 * 4 = 65,536 tokens per step
+    gradient_accumulation_steps: int = 2   # 64 * 512 * 2 = 65,536 tokens per step
     
     # Target Token Budget (e.g. 1B tokens)
     target_tokens: int = 1_000_000_000
