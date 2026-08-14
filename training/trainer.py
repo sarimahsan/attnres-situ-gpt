@@ -195,10 +195,20 @@ class Trainer:
             wall_clock = time.time() - start_time
             tok_per_sec = self.cumulative_tokens / wall_clock if wall_clock > 0 else 0.0
 
+            # Approximate time remaining (ETA)
+            rem_iters = max(0, self.max_iters - iter_num)
+            eta_sec = rem_iters * (wall_clock / iter_num) if iter_num > 0 else 0.0
+            if eta_sec < 60:
+                eta_str = f"{int(eta_sec)}s"
+            elif eta_sec < 3600:
+                eta_str = f"{int(eta_sec // 60)}m {int(eta_sec % 60):02d}s"
+            else:
+                eta_str = f"{int(eta_sec // 3600)}h {int((eta_sec % 3600) // 60):02d}m"
+
             # Live Step Progress output every 10 steps (or step 1) with rich diagnostics
             if iter_num % self.t_cfg.log_interval == 0 or iter_num == 1:
                 pct = (iter_num / self.max_iters) * 100
-                print(f"Step {iter_num}/{self.max_iters} ({pct:.1f}%) | Loss: {loss_accum:.4f} | LR: {lr:.2e} | GradNorm(pre-clip): {grad_norm_val:.2f} | ActMax: {act_max:.2f} | Speed: {tok_per_sec:,.0f} tok/s", flush=True)
+                print(f"Step {iter_num}/{self.max_iters} ({pct:.1f}%) | Loss: {loss_accum:.4f} | LR: {lr:.2e} | GradNorm(pre-clip): {grad_norm_val:.2f} | ActMax: {act_max:.2f} | Speed: {tok_per_sec:,.0f} tok/s | ETA: {eta_str}", flush=True)
 
             # Evaluation Interval
             val_loss, val_ppl = "", ""
